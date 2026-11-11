@@ -93,7 +93,13 @@ class Agent:
                     tool_content = json.dumps({"results": sources}, ensure_ascii=False)
                 except (ValueError, SearchError, json.JSONDecodeError) as exc:
                     tool_content = json.dumps({"error": str(exc), "results": []})
-                messages.append(choice.message)
+                # The assistant tool-call message must contain only the call we execute;
+                # otherwise APIs expect a response for every declared tool call.
+                messages.append({
+                    "role": "assistant",
+                    "content": choice.message.content,
+                    "tool_calls": [call.model_dump(exclude_none=True)],
+                })
                 messages.append({"role": "tool", "tool_call_id": call.id, "content": tool_content})
                 final = await self.client.chat.completions.create(
                     model=self.settings.openai_model, messages=messages, temperature=0.2
